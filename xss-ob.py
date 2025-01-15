@@ -100,6 +100,22 @@ def comment_obfuscation(payload):
     """Insert random comments to break up payload."""
     return ''.join(f"{char}/*{random.randint(1000, 9999)}*/" for char in payload)
 
+def hex_byte_split(payload):
+    return ''.join(f"%{ord(char):02x}" + random.choice(['%20', '']) for char in payload)
+
+def rtl_override(payload):
+    return f"\u202E{payload}\u202c"
+
+def dynamic(payload):
+    encoded = []
+    for char in payload:
+        choice = random.choice([html_entity_encode, hex_encode, unicode_encode])
+        encoded.append(choice(char))
+    return ''.join(encoded)
+
+def dom_mutation(payload):
+    return f"<div style='display:none;'>{payload}</div>"
+
 
 def mixed_obfuscation(payload, num_techniques=3):
     """Apply a random mix of obfuscation techniques."""
@@ -120,6 +136,10 @@ def mixed_obfuscation(payload, num_techniques=3):
         concatenate_chars,
         insert_null_bytes,
         comment_obfuscation,
+        hex_byte_split,
+        dynamic,
+        rtl_override,
+        dom_mutation
     ]
 
     chosen_techniques = random.sample(techniques, num_techniques)
@@ -147,6 +167,10 @@ def apply_all_techniques(payload):
         concatenate_chars,
         insert_null_bytes,
         comment_obfuscation,
+        hex_byte_split,
+        dynamic,
+        rtl_override,
+        dom_mutation
     ]
 
     obfuscated_payloads = []
