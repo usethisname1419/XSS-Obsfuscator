@@ -3,6 +3,7 @@ import base64
 import urllib.parse
 import argparse
 from itertools import combinations
+import re 
 
 # Define obfuscation techniques for XSS payloads
 def random_case(payload):
@@ -17,8 +18,8 @@ def insert_tag_mimicry(payload):
     """Insert tag-like mimics for broader coverage."""
     mimic_tags = ['<script>', '<div>', '<img>', '<a>', '<span>', '<body>', '<style>', '<iframe>']
     for tag in mimic_tags:
-        payload = payload.replace(tag, f'<SCR<{tag[1:]}>IPT>')
-        payload = payload.replace(tag.replace('<', '</'), f'</SCR<{tag[2:]}IPT>')
+        pattern = fr'\b{tag}.*?>|</{tag}>\b'
+        payload = re.sub(pattern, f'<SCR<{tag}>IPT>', payload, flags=re.IGNORECASE)
     return payload
 
 
@@ -162,6 +163,7 @@ def apply_all_techniques(payload):
         random_unicode_insert,
         add_spacing,
         double_encode,
+        pad_payload,
         js_escape,
         bitwise_obfuscate,
         concatenate_chars,
@@ -186,9 +188,9 @@ def load_payloads(file_path):
 
 
 # Write obfuscated payloads to a file
-def write_payloads(obfuscated_payloads, output_file):
+def write_payloads(output_file, payload_generator):
     with open(output_file, 'w') as file:
-        for payload in obfuscated_payloads:
+        for payload in payload_generator:
             file.write(payload + '\n')
 
 
@@ -198,14 +200,22 @@ def main():
     parser.add_argument('-in', '--input_file', required=True, help="Input file containing raw payloads")
     parser.add_argument('-out', '--output_file', required=True, help="Output file for obfuscated payloads")
     args = parser.parse_args()
+    try:
+        payloads = load_payloads(args.input_file)
+        obfuscated_payloads = []
+        for payload in payloads:
+            obfuscated_payloads.extend(apply_all_techniques(payload))
+            obfuscated_payloads.append(mixed_obfuscation(payload, num_techniques=3))
 
-    payloads = load_payloads(args.input_file)
-    obfuscated_payloads = []
-    for payload in payloads:
-        obfuscated_payloads.extend(apply_all_techniques(payload))
-        obfuscated_payloads.append(mixed_obfuscation(payload, num_techniques=3))
+        write_payloads(obfuscated_payloads, args.output_file)
+        
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
 
-    write_payloads(obfuscated_payloads, args.output_file)
+
+    except Exception as e:
+        print(f"Somethings wrong: {e}")
+    
 
 
 if __name__ == '__main__':
